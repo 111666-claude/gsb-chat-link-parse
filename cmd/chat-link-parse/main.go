@@ -13,8 +13,6 @@ import (
 	"example.com/chattext/chattext"
 )
 
-const maxRefs = 8
-
 // Run 执行一次命令行调用，返回退出码。
 func Run(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("chat-link-parse", flag.ContinueOnError)
@@ -40,8 +38,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "id=%s\n", id)
 	case "quota":
 		line := strings.TrimSpace(strings.Repeat("[item:a1] ", 12))
-		refs, _ := chattext.Scan(line)
-		fmt.Fprintf(stdout, "refs=%d truncated=%d\n", len(refs), 0)
+		refs, _, truncated := chattext.ScanLine(line)
+		fmt.Fprintf(stdout, "refs=%d truncated=%d\n", len(refs), truncated)
 	case "file", "":
 		handle, err := os.Open(*input)
 		if err != nil {
