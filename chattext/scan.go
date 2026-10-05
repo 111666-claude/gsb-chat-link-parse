@@ -1,5 +1,4 @@
 // Package chattext 从聊天文本里抽取物品与任务引用。
-// 缺陷：不认转义、未知类型也算引用、ID 长度不校验、大小写不归一、一行引用数不封顶。
 package chattext
 
 import "strings"
@@ -12,31 +11,65 @@ type Ref struct {
 
 var kinds = map[string]bool{"item": true, "quest": true, "achievement": true}
 
+// maxRefsPerLine 是一行最多抽取的引用数，超出的计入 truncated。
+const maxRefsPerLine = 8
+
 // Scan 抽取一行里的引用，返回引用列表与无法识别的片段数。
-// 缺陷：`[[` 不转义、未知类型也收、ID 长度不查、大写不归一、一行不限量。
 func Scan(line string) ([]Ref, int) {
-	refs := []Ref{}
-	bad := 0
-	rest := line
-	for {
-		start := strings.Index(rest, "[")
-		if start < 0 {
+	refs, bad, _ := ScanLine(line)
+	return refs, bad
+}
+
+// ScanLine 与 Scan 相同，但额外返回因超出单行限额而被截断的引用数。
+// 单行一趟扫描，O(行长)。
+func ScanLine(line string) (refs []Ref, bad, truncated int) {
+	refs = []Ref{}
+	for i := 0; i < len(line); {
+		open := strings.IndexByte(line[i:], '[')
+		if open < 0 {
 			break
 		}
-		end := strings.Index(rest[start:], "]")
+		start := i + open
+		if start+1 < len(line) && line[start+1] == '[' {
+			// `[[` 是字面量左括号，不开始一条引用。
+			i = start + 2
+			continue
+		}
+		end := strings.IndexByte(line[start+1:], ']')
 		if end < 0 {
 			break
 		}
-		body := rest[start+1 : start+end]
-		kind, id, _ := strings.Cut(body, ":")
-		if id == "" {
+		body := line[start+1 : start+1+end]
+		i = start + 1 + end + 1
+		kind, id, ok := strings.Cut(body, ":")
+		if !ok || !kinds[kind] {
 			bad++
-		} else if kinds[kind] || kind != "" {
-			refs = append(refs, Ref{Kind: kind, ID: id})
-		} else {
-			bad++
+			continue
 		}
-		rest = rest[start+end+1:]
+		id = strings.ToLower(id)
+		if !validID(id) {
+			bad++
+			continue
+		}
+		if len(refs) >= maxRefsPerLine {
+			truncated++
+			continue
+		}
+		refs = append(refs, Ref{Kind: kind, ID: id})
 	}
-	return refs, bad
+	return refs, bad, truncated
+}
+
+// validID 校验归一后的 ID：长度 2 到 16，只允许小写字母、数字与下划线。
+func validID(id string) bool {
+	if len(id) < 2 || len(id) > 16 {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c != '_' && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
 }

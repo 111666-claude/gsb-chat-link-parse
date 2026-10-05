@@ -40,8 +40,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "id=%s\n", id)
 	case "quota":
 		line := strings.TrimSpace(strings.Repeat("[item:a1] ", 12))
-		refs, _ := chattext.Scan(line)
-		fmt.Fprintf(stdout, "refs=%d truncated=%d\n", len(refs), 0)
+		refs, _, truncated := chattext.ScanLine(line)
+		fmt.Fprintf(stdout, "refs=%d truncated=%d\n", len(refs), truncated)
 	case "file", "":
 		handle, err := os.Open(*input)
 		if err != nil {
