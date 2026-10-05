@@ -1,0 +1,4 @@
+[item:sword_01] 便宜出，另收 [quest:main_01]
+[[item:sword_01]] 这个是字面量
+[item:SWORD_01] 大小写混着来
+[mount:horse_01] 未知类型
